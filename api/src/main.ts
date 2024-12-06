@@ -6,7 +6,6 @@ import { ApplicaitionConfigurationService } from './configurations/application/c
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-
   // get app config for cors serttings and starting the app.
   const applicationConfiguration: ApplicaitionConfigurationService = app.get(ApplicaitionConfigurationService)
   await app.listen(applicationConfiguration.port, applicationConfiguration.host, () => console.log(`${applicationConfiguration.name} is running on: `, {
