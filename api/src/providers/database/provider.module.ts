@@ -1,25 +1,9 @@
 import { Module } from "@nestjs/common";
-import { TypeOrmModule, TypeOrmModuleAsyncOptions } from "@nestjs/typeorm";
-import { MariadbConfigurationService } from "src/configurations/database/mariadb/configuration.service";
+import { MariadbConfigurationModule } from "src/configurations/database/mariadb/configuration.module";
 
 @Module({
   imports: [
-    TypeOrmModule.forRootAsync({
-      imports: [],
-      useFactory: async (mariadbConfigurationService: MariadbConfigurationService) => {
-        return {
-          type: 'mariadb',
-          host: mariadbConfigurationService.host,
-          port: mariadbConfigurationService.port,
-          username: mariadbConfigurationService.username,
-          password: mariadbConfigurationService.password,
-          database: mariadbConfigurationService.dbName,
-          autoLoadEntities: true,
-          synchronize: true
-        }
-      },
-      inject: [MariadbConfigurationService]
-    } as TypeOrmModuleAsyncOptions)
+    MariadbConfigurationModule
   ]
 })
-export default class MariadbProviderModule { }
+export class DatabaseProviderModule { }
