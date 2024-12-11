@@ -3,6 +3,7 @@ import { MariadbConfigurationModule } from "src/configurations/database/mariadb/
 
 @Module({
   imports: [
+    MariadbConfigurationModule,
     MariadbConfigurationModule
   ]
 })
