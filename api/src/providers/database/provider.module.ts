@@ -1,10 +1,11 @@
 import { Module } from "@nestjs/common";
-import { MariadbConfigurationModule } from "src/configurations/database/mariadb/configuration.module";
+import MariadbProviderModule from "./mariadb/provider.module";
+import MongoDBProviderModule from "./mongodb/provider.module";
 
 @Module({
   imports: [
-    MariadbConfigurationModule,
-    MariadbConfigurationModule
+    MariadbProviderModule,
+    MongoDBProviderModule,
   ]
 })
 export class DatabaseProviderModule { }

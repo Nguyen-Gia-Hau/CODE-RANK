@@ -1,11 +1,12 @@
 import { Module } from "@nestjs/common";
 import { TypeOrmModule, TypeOrmModuleAsyncOptions } from "@nestjs/typeorm";
+import { MariadbConfigurationModule } from "src/configurations/database/mariadb/configuration.module";
 import { MariadbConfigurationService } from "src/configurations/database/mariadb/configuration.service";
 
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({
-      imports: [],
+      imports: [MariadbConfigurationModule],
       useFactory: async (mariadbConfigurationService: MariadbConfigurationService) => {
         return {
           type: 'mariadb',
