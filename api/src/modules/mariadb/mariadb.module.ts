@@ -1,10 +1,14 @@
 import { Module } from "@nestjs/common";
-import { UserModule } from "./user/user.module";
+import { UsersModule } from "./users/users.module";
+import { AuthProvidersModule } from "./auth-providers/auth-providers.module";
+import { SessionsModule } from "./sessions/sessions.module";
 
 @Module({
   imports: [
-    UserModule
+    UsersModule,
+    AuthProvidersModule,
+    SessionsModule
   ]
 })
 
-export class MariadbModule { }
+export class MariadbFeatureModule { }

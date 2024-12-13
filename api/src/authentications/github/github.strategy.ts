@@ -10,11 +10,12 @@ export class GitHubStrategy extends PassportStrategy(Strategy, 'github') {
       clientID: githubAuthConfig.clientId,
       clientSecret: githubAuthConfig.clientSecret,
       callbackURL: 'http://localhost:8080/auth/github/callback',
-      scope: ['email']
+      scope: ['user:email']
     });
   }
 
   async validate(accessToken: string, refreshToken: string, profile: any, done: Function) {
+    console.log(profile)
     // Xử lý logic tìm hoặc tạo người dùng tại đây
     const user = {
       githubId: profile.id,

@@ -1,9 +1,9 @@
 import { Module } from "@nestjs/common";
-import { MariadbModule } from "./mariadb/mariadb.module";
+import { MariadbFeatureModule } from "./mariadb/mariadb.module";
 
 @Module({
   imports: [
-    MariadbModule
+    MariadbFeatureModule
   ]
 })
-export class DatabaseModule { }
+export class FeatureModule { }
