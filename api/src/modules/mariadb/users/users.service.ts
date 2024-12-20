@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserRepository } from './users.repository';
+import { AUTH_PROVIDERS } from 'src/common/constants/authentication/auth.constants';
+import { MARIADB_TABLES } from 'src/common/constants/database/mariadb/db-tables';
 
 @Injectable()
 export class UsersService {
@@ -14,6 +16,23 @@ export class UsersService {
 
   async findByEmail(email: string) {
     return await this.userRepository.findByCondition({ where: { email } })
+  }
+
+  async findById(id: number) {
+    return await this.userRepository.findOneById(id)
+  }
+
+
+  async findLocalAuthUserByEmail(email: string) {
+    return await this.userRepository.findByCondition({
+      where: {
+        email: email,
+        authProvider: {
+          provider: AUTH_PROVIDERS.LOCAL
+        }
+      },
+      relations: ['authProvider']
+    })
   }
 
   findAll() {

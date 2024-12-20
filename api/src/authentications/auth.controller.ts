@@ -1,28 +1,52 @@
-import { Controller, Get, Req, Request, Res, UseGuards } from "@nestjs/common";
+
+import { Controller, Get, Post, Req, Request, UseGuards } from "@nestjs/common";
 import { AuthService } from "./auth.service";
 import { AuthGuard } from "@nestjs/passport";
+import { AUTH_PROVIDERS } from "src/common/constants/authentication/auth.constants";
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) { }
 
-  @Get('google')
-  @UseGuards(AuthGuard('google'))
-  async googleAuth(@Request() req) { }
-
-  @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
-  googleAuthRedirect(@Request() req) {
-    return this.authService.googleLogin(req);
+  @Get(`${AUTH_PROVIDERS.GOOGLE}`)
+  @UseGuards(AuthGuard(AUTH_PROVIDERS.GOOGLE))
+  async authenticateWithGoogle() {
+    // This endpoint redirects to Google's OAuth flow
   }
 
-  @Get('github')
-  @UseGuards(AuthGuard('github'))
-  async githubAuth() { }
+  @Get(`${AUTH_PROVIDERS.GOOGLE}/callback`)
+  @UseGuards(AuthGuard(AUTH_PROVIDERS.GOOGLE))
+  async googleCallback(@Req() req: Request) {
+    return this.authService.handleOAuthLogin(req, AUTH_PROVIDERS.GOOGLE);
+  }
 
-  @Get('github/callback')
-  @UseGuards(AuthGuard('github'))
-  githubAuthRedirect(@Request() req) {
-    return this.authService.githubLogin(req)
+  @Get(`${AUTH_PROVIDERS.GITHUB}`)
+  @UseGuards(AuthGuard(AUTH_PROVIDERS.GITHUB))
+  async authenticateWithGithub() {
+    // This endpoint redirects to GitHub's OAuth flow
+  }
+
+  @Get(`${AUTH_PROVIDERS.GITHUB}/callback`)
+  @UseGuards(AuthGuard(AUTH_PROVIDERS.GITHUB))
+  async githubCallback(@Req() req: Request) {
+    return this.authService.handleOAuthLogin(req, AUTH_PROVIDERS.GITHUB);
+  }
+
+  @Post(`${AUTH_PROVIDERS.LOCAL}/login`)
+  @UseGuards(AuthGuard(AUTH_PROVIDERS.LOCAL))
+  async login(@Req() req: any) {
+    return this.authService.generateLoginResponse(req.user);
+  }
+
+  @Post(`${AUTH_PROVIDERS.LOCAL}/logout`)
+  async logout(@Req() req: any) {
+    return this.authService.logout(req);
+  }
+
+  @UseGuards(AuthGuard(AUTH_PROVIDERS.JWT))
+  @Get('profile')
+  getProfile(@Req() req: any) {
+    return req.user;
   }
 }
+

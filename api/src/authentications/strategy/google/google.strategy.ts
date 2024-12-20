@@ -2,9 +2,10 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { Injectable } from '@nestjs/common';
 import { GoogleAuthConfigurationService } from 'src/configurations/authentications/google/configuration.service';
+import { AUTH_PROVIDERS } from 'src/common/constants/authentication/auth.constants';
 
 @Injectable()
-export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
+export class GoogleStrategy extends PassportStrategy(Strategy, AUTH_PROVIDERS.GOOGLE) {
   constructor(private readonly googleAuthConfig: GoogleAuthConfigurationService) {
     super({
       clientID: googleAuthConfig.clientId,
@@ -23,12 +24,12 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     const user = {
       providerId: profile.id,
       email: emails[0].value,
-      firstName: name.givenName,
-      lastName: name.familyName,
+      fullName: name.familyName + ' ' + name.givenName,
       picture: photos[0].value,
       accessToken,
       refreshToken,
     };
+
     done(null, user);
   }
 }

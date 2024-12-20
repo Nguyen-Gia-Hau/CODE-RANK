@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateAuthProviderDto } from './dto/create-auth-provider.dto';
 import { UpdateAuthProviderDto } from './dto/update-auth-provider.dto';
 import { AuthProviderRepository } from './auth-providers.repository';
+import { MARIADB_TABLES } from 'src/common/constants/database/mariadb/db-tables';
 
 @Injectable()
 export class AuthProvidersService {
@@ -12,7 +13,7 @@ export class AuthProvidersService {
   }
 
   async findByProviderId(id: string) {
-    return await this.authProviderRepository.findByCondition({ where: { providerId: id } })
+    return await this.authProviderRepository.findByCondition({ where: { providerId: id }, relations: [MARIADB_TABLES.USER] })
   }
 
   findAll() {

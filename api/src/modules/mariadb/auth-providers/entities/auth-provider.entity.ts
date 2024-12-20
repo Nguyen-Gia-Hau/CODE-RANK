@@ -7,8 +7,11 @@ export class AuthProvider extends MariadbBaseEntity {
   @Column()
   provider: string
 
-  @Column({ unique: true })
+  @Column({ nullable: true })
   providerId: string
+
+  @Column({ nullable: true })
+  password_hash: string
 
   @OneToOne(() => User, (user) => user.authProvider, { onDelete: "CASCADE" })
   @JoinColumn()
