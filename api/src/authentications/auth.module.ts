@@ -11,6 +11,7 @@ import { GoogleStrategy } from "./strategy/google/google.strategy";
 import { GitHubStrategy } from "./strategy/github/github.strategy";
 import { JwtStrategy } from "./strategy/jwt/jwt.strategy";
 import { JwtAuthConfigurationModule } from "src/configurations/authentications/jwt/configuration.module";
+import { TokensModule } from "src/modules/mariadb/tokens/tokens.module";
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { JwtAuthConfigurationModule } from "src/configurations/authentications/j
     JwtAuthProviderModule,
     UsersModule,
     AuthProvidersModule,
+    TokensModule
   ],
   controllers: [AuthController],
   providers: [

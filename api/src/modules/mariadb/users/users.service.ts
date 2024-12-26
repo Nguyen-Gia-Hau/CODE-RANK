@@ -3,7 +3,6 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserRepository } from './users.repository';
 import { AUTH_PROVIDERS } from 'src/common/constants/authentication/auth.constants';
-import { MARIADB_TABLES } from 'src/common/constants/database/mariadb/db-tables';
 
 @Injectable()
 export class UsersService {

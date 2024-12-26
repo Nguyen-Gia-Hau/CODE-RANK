@@ -1,5 +1,5 @@
 
-import { Controller, Get, Post, Req, Request, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Post, Req, Request, UseGuards } from "@nestjs/common";
 import { AuthService } from "./auth.service";
 import { AuthGuard } from "@nestjs/passport";
 import { AUTH_PROVIDERS } from "src/common/constants/authentication/auth.constants";
@@ -38,11 +38,17 @@ export class AuthController {
     return this.authService.generateLoginResponse(req.user);
   }
 
+  @UseGuards(AuthGuard(AUTH_PROVIDERS.JWT))
   @Post(`${AUTH_PROVIDERS.LOCAL}/logout`)
   async logout(@Req() req: any) {
     return this.authService.logout(req);
   }
 
+  @Post('refresh-token')
+  async refreshToken(@Body('refreshToken') refreshToken: string) {
+  }
+
+  // controller for test
   @UseGuards(AuthGuard(AUTH_PROVIDERS.JWT))
   @Get('profile')
   getProfile(@Req() req: any) {

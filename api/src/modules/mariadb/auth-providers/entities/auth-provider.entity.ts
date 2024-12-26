@@ -11,7 +11,7 @@ export class AuthProvider extends MariadbBaseEntity {
   providerId: string
 
   @Column({ nullable: true })
-  password_hash: string
+  passwordHash: string
 
   @OneToOne(() => User, (user) => user.authProvider, { onDelete: "CASCADE" })
   @JoinColumn()
