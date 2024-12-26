@@ -25,8 +25,6 @@ export class TokensService {
         isRevoked: true,
       });
 
-      console.log(tokenToUpdate)
-
       if (tokenToUpdate) {
         await this.tokenRepository.save(tokenToUpdate);
       }

@@ -118,12 +118,35 @@ export class AuthService {
     return this.userService.findById(currentUser.id);
   }
 
-  // Generate access and refresh tokens as a login response
+
+  public async createRefreshTokenWithAccessToken(user: User): Promise<string> {
+    // Generate a unique key for the refresh token
+    const key = generateUniqueKey();
+
+    // Create an access token
+    const accessToken = this.createJwtToken(this.createJwtPayload(user, key), this.jwtAuthConfigurationService.accessExpiresIn);
+
+    // Create a payload for the refresh token that includes the access token
+    const refreshPayload: IJwtPayload = {
+      ...this.createJwtPayload(user, key),
+      accessToken,
+    };
+
+    // Create a refresh token using the payload
+    const refreshToken = this.createJwtToken(refreshPayload, this.jwtAuthConfigurationService.refreshExpiresIn);
+
+    // Save the refresh token key to the database
+    await this.saveTokenToDB(user, key, "REFRESH_TOKEN", this.jwtAuthConfigurationService.refreshExpiresIn);
+
+    return refreshToken;
+  }
+
   public async generateLoginResponse(user: User) {
-    const [accessToken, refreshToken] = await Promise.all([
-      this.createAccessToken(user),
-      this.createRefreshToken(user),
-    ]);
+    const refreshToken = await this.createRefreshTokenWithAccessToken(user);
+
+    // Extract the access token embedded in the refresh token
+    const { accessToken } = this.jwtService.decode(refreshToken) as IJwtPayload;
+
     return { accessToken, refreshToken };
   }
 
@@ -131,6 +154,9 @@ export class AuthService {
   public async logout(req: any) {
     const user: IJwtPayload = req.user;
     return this.tokenService.revokeToken(user.tokenKey);
+  }
+
+  public async reafreshToken(refreshToken: string) {
   }
 }
 
