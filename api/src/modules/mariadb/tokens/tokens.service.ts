@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { TokenRepository } from './tokens.repository';
 import { CreateTokenDto } from './dto/create-token.dto';
+import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Token } from './entities/token.entity';
 @Injectable()
 export class TokensService {
-  constructor(private readonly tokenRepository: TokenRepository) { }
+  constructor(@InjectRepository(Token) private readonly tokenRepository: Repository<Token>) { }
 
   async save(createTokenDto: CreateTokenDto) {
     const token = this.tokenRepository.create(createTokenDto)
@@ -11,7 +13,7 @@ export class TokensService {
   }
 
   async findTokenByKey(key: string) {
-    return await this.tokenRepository.findByCondition({ where: { key } })
+    return await this.tokenRepository.findOne({ where: { key } })
   }
 
   async revokeToken(key: string): Promise<boolean> {
@@ -31,5 +33,17 @@ export class TokensService {
     }
 
     return true
+  }
+
+  async removeExpiredTokens(): Promise<number> {
+    const currentDate = new Date();
+
+    const result = await this.tokenRepository.createQueryBuilder()
+      .delete()
+      .from(Token)
+      .where('expiresAt < :currentDate', { currentDate })
+      .execute();
+
+    return result.affected || 0; // Return the number of deleted records
   }
 }

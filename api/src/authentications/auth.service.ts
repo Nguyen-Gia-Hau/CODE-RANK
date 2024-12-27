@@ -1,7 +1,6 @@
 
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { calculateExpiresAt } from "src/common/utils/time-utils";
 import { JwtAuthConfigurationService } from "src/configurations/authentications/jwt/configuration.service";
 import { AuthProvidersService } from "src/modules/mariadb/auth-providers/auth-providers.service";
 import { TokensService } from "src/modules/mariadb/tokens/tokens.service";
@@ -9,14 +8,16 @@ import { User } from "src/modules/mariadb/users/entities/user.entity";
 import { UsersService } from "src/modules/mariadb/users/users.service";
 import * as bcrypt from "bcrypt";
 import { generateUniqueKey } from "src/common/utils/unique-key-generator";
+import { calculateExpiresAt } from "src/common/utils/time-utils";
 
-// Interface to define the structure of the JWT payload
 export interface IJwtPayload {
-  sub: number; // User ID
-  email: string; // User email
-  roles?: string[]; // Optional roles associated with the user
+  sub: number;
+  email: string;
+  roles?: string[];
   tokenKey: string;
-  [key: string]: any; // Allows for extending additional attributes
+  accessKey?: string;
+  refreshKey?: string;
+  [key: string]: any;
 }
 
 @Injectable()
@@ -24,63 +25,12 @@ export class AuthService {
   constructor(
     private readonly userService: UsersService,
     private readonly authProviderService: AuthProvidersService,
-    private readonly tokenService: TokensService,
+    private readonly tokensService: TokensService,
     private readonly jwtService: JwtService,
-    private readonly jwtAuthConfigurationService: JwtAuthConfigurationService
+    private readonly jwtAuthConfigurationService: JwtAuthConfigurationService,
   ) { }
 
-  // Create the payload for the JWT token
-  private createJwtPayload(user: User, tokenKey: string): IJwtPayload {
-    return {
-      sub: user.id,
-      email: user.email,
-      //roles: user.roles || [], // Assuming User has a 'roles' property
-      tokenKey
-    };
-  }
-
-  // Generate a JWT token from the given payload
-  private createJwtToken(payload: IJwtPayload, expiresIn?: string): string {
-    return this.jwtService.sign(payload, expiresIn ? { expiresIn } : undefined);
-  }
-
-  // Save token information to the database
-  private async saveTokenToDB(user: User, key: string, type: string, expiresIn: string) {
-    const expiresAt = calculateExpiresAt(expiresIn);
-
-    await this.tokenService.save({
-      key,
-      type,
-      expiresAt,
-      user,
-    });
-  }
-
-  // Create and save a token to the database
-  private async createAndSaveToken(
-    user: User,
-    tokenType: "ACCESS_TOKEN" | "REFRESH_TOKEN",
-    expiresIn: string
-  ): Promise<string> {
-    const key = generateUniqueKey();
-    const payload = this.createJwtPayload(user, key);
-    const token = this.createJwtToken(payload, expiresIn);
-    await this.saveTokenToDB(user, key, tokenType, expiresIn);
-    return token;
-  }
-
-  // Create an access token for the user
-  private async createAccessToken(user: User): Promise<string> {
-    return this.createAndSaveToken(user, "ACCESS_TOKEN", this.jwtAuthConfigurationService.accessExpiresIn);
-  }
-
-  // Create a refresh token for the user
-  private async createRefreshToken(user: User): Promise<string> {
-    return this.createAndSaveToken(user, "REFRESH_TOKEN", this.jwtAuthConfigurationService.refreshExpiresIn);
-  }
-
-  // Handle OAuth login and return tokens for the user
-  public async handleOAuthLogin(req: any, provider: string) {
+  async handleOAuthLogin(req: any, provider: string) {
     if (!req.user) return null;
 
     const { providerId, email, fullName, picture } = req.user;
@@ -90,10 +40,7 @@ export class AuthService {
       email,
       name: fullName,
       picture,
-      authProvider: {
-        provider,
-        providerId,
-      },
+      authProvider: { provider, providerId },
     };
 
     const currentUser = authProviderOfUser
@@ -103,12 +50,12 @@ export class AuthService {
         picture,
       })
       : await this.userService.create(userPayload);
+
     const user = await this.userService.findById(currentUser.id);
     return this.generateLoginResponse(user);
   }
 
-  // Validate a user's credentials using email and password
-  public async validateUser(email: string, password: string): Promise<User | null> {
+  async validateUser(email: string, password: string): Promise<User | null> {
     const currentUser = await this.userService.findLocalAuthUserByEmail(email);
     if (!currentUser) return null;
 
@@ -118,45 +65,108 @@ export class AuthService {
     return this.userService.findById(currentUser.id);
   }
 
-
-  public async createRefreshTokenWithAccessToken(user: User): Promise<string> {
-    // Generate a unique key for the refresh token
-    const key = generateUniqueKey();
-
-    // Create an access token
-    const accessToken = this.createJwtToken(this.createJwtPayload(user, key), this.jwtAuthConfigurationService.accessExpiresIn);
-
-    // Create a payload for the refresh token that includes the access token
-    const refreshPayload: IJwtPayload = {
-      ...this.createJwtPayload(user, key),
-      accessToken,
-    };
-
-    // Create a refresh token using the payload
-    const refreshToken = this.createJwtToken(refreshPayload, this.jwtAuthConfigurationService.refreshExpiresIn);
-
-    // Save the refresh token key to the database
-    await this.saveTokenToDB(user, key, "REFRESH_TOKEN", this.jwtAuthConfigurationService.refreshExpiresIn);
-
-    return refreshToken;
+  private generateToken(payload: IJwtPayload, expiresIn: string) {
+    return this.jwtService.sign(payload, { expiresIn });
   }
 
-  public async generateLoginResponse(user: User) {
-    const refreshToken = await this.createRefreshTokenWithAccessToken(user);
+  private async saveToken(
+    key: string,
+    type: "ACCESS_TOKEN" | "REFRESH_TOKEN",
+    user: User,
+    expiresIn: string,
+  ) {
+    await this.tokensService.save({
+      key,
+      type,
+      expiresAt: calculateExpiresAt(expiresIn),
+      user,
+    });
+  }
 
-    // Extract the access token embedded in the refresh token
-    const { accessToken } = this.jwtService.decode(refreshToken) as IJwtPayload;
+  async generateLoginResponse(user: User) {
+    const accessKey = generateUniqueKey();
+    const refreshKey = generateUniqueKey();
+
+    const basePayload = {
+      sub: user.id,
+      email: user.email,
+    };
+
+    const accessPayload = { ...basePayload, accessKey, refreshKey, tokenKey: accessKey };
+    const refreshPayload = { ...basePayload, accessKey, refreshKey, tokenKey: refreshKey };
+
+    const accessExpiresIn = this.jwtAuthConfigurationService.accessExpiresIn;
+    const refreshExpiresIn = this.jwtAuthConfigurationService.refreshExpiresIn;
+
+    const [accessToken, refreshToken] = await Promise.all([
+      this.generateToken(accessPayload, accessExpiresIn),
+      this.generateToken(refreshPayload, refreshExpiresIn),
+    ]);
+
+    await Promise.all([
+      this.saveToken(accessKey, "ACCESS_TOKEN", user, accessExpiresIn),
+      this.saveToken(refreshKey, "REFRESH_TOKEN", user, refreshExpiresIn),
+    ]);
 
     return { accessToken, refreshToken };
   }
 
-  // Handle user logout by revoking the provided token
-  public async logout(req: any) {
-    const user: IJwtPayload = req.user;
-    return this.tokenService.revokeToken(user.tokenKey);
+  async logout(req: any) {
+    const payload: IJwtPayload = req.user;
+    console.log(payload)
+    if (!payload || !payload.accessKey || !payload.refreshKey) {
+      throw new UnauthorizedException("Invalid token payload.");
+    }
+
+    const [accessTokenRecord, refreshTokenRecord] = await Promise.all([
+      this.tokensService.findTokenByKey(payload.accessKey),
+      this.tokensService.findTokenByKey(payload.refreshKey),
+    ]);
+
+    if (!accessTokenRecord || !refreshTokenRecord) {
+      throw new UnauthorizedException("Token does not exist or has already been revoked.");
+    }
+
+    await Promise.all([
+      this.tokensService.revokeToken(payload.accessKey),
+      this.tokensService.revokeToken(payload.refreshKey),
+    ]);
+
+    return { message: "Tokens successfully revoked." };
   }
 
-  public async reafreshToken(refreshToken: string) {
+
+  async refreshToken(token: string) {
+    try {
+      // Verify and decode the provided refresh token
+      const decoded: IJwtPayload = await this.jwtService.verifyAsync(token, {
+        secret: this.jwtAuthConfigurationService.secret, // Use the secret specific to refresh tokens
+      });
+
+      // Check if the refresh token exists in the database and is not revoked
+      const refreshToken = await this.tokensService.findTokenByKey(decoded.refreshKey);
+      if (!refreshToken || refreshToken.isRevoked) {
+        throw new UnauthorizedException("Invalid or revoked refresh token."); // Handle invalid or revoked tokens
+      }
+
+      // Revoke the old access and refresh tokens in the database
+      await Promise.all([
+        this.tokensService.revokeToken(decoded.accessKey), // Revoke the associated access token
+        this.tokensService.revokeToken(decoded.refreshKey), // Revoke the current refresh token
+      ]);
+
+      // Retrieve the user associated with the token
+      const user = await this.userService.findById(decoded.sub);
+      if (!user) {
+        throw new UnauthorizedException("User not found."); // Handle cases where the user does not exist
+      }
+
+      // Generate and return a new pair of access and refresh tokens
+      return this.generateLoginResponse(user);
+    } catch (error) {
+      // Handle errors during token verification or other operations
+      throw new UnauthorizedException("Unable to refresh token.", error.message);
+    }
   }
+
 }
-
